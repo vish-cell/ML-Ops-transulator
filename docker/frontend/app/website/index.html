@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Intelligence System</title>
+    <link rel="stylesheet" href="/website/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Voice Intelligence System</h1>
+        
+        <div id="uploadSection">
+            <h2>Upload or Record Audio</h2>
+            <div class="file-upload">
+                <input type="file" id="audioFile" accept="audio/*">
+                <button id="uploadBtn">Upload Audio</button>
+            </div>
+            <div class="recording">
+                <button id="recordBtn">Start Recording</button>
+                <button id="stopBtn" disabled>Stop Recording</button>
+                <audio id="recordedAudio" controls></audio>
+            </div>
+        </div>
+
+        <div id="languageSection" class="hidden processing-section">
+            <h3>Detected Language: <span id="languageResult"></span></h3>
+            <button id="confirmBtn">Yes, Transcribe</button>
+            <button id="rejectBtn">No, Try Again</button>
+        </div>
+        
+        <div id="transcriptionResult" class="hidden processing-section">
+            <h3>Transcription:</h3>
+            <div id="transcriptionText" class="transcription-box"></div>
+        </div>
+    </div>
+
+    <script src="/website/script.js"></script>
+</body>
+</html>
