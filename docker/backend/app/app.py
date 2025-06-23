@@ -17,7 +17,7 @@ model = None
 try:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     logger.info(f"Loading Whisper model on {device}")
-    model = whisper.load_model("base", device=device)
+    model = whisper.load_model("small", device=device)
     logger.info("Model loaded successfully")
 except Exception as e:
     logger.error(f"Failed to load model: {e}")

@@ -2,11 +2,11 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: backend-network-policy
-  namespace: default
+  namespace: whisper-namespace
 spec:
   podSelector:
     matchLabels:
-      app: whisper-backend
+      app: backend 
   policyTypes:
     - Ingress
     - Egress
@@ -18,4 +18,21 @@ spec:
       ports:
         - protocol: TCP
           port: 8000
-  egress: []
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: frontend
+      ports:
+        - protocol: TCP
+          port: 5000
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

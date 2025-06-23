@@ -2,49 +2,35 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: whisper-backend-deployment
+  namespace: whisper-namespace
   labels:
-    app: whisper-backend
+    app: backend
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: whisper-backend
+      app: backend
   template:
     metadata:
       labels:
-        app: whisper-backend
+        app: backend
     spec:
       volumes:
-        - name: audio-input-storage
+        - name: audio-storage
           hostPath:
             path: /mnt/audio-data
             type: DirectoryOrCreate
+        - name: whisper-cache-volume # Added this volume
+          persistentVolumeClaim:
+            claimName: whisper-model-cache-pvc
       containers:
-        - name: whisper-backend-container
-          image: your-dockerhub-username/whisper-inference:latest
+        - name: whisper
+          image: vishalg2022/whisper:2
           ports:
             - containerPort: 8000
-          resources:
-            requests:
-              memory: "16Gi"
-              cpu: "1000m"
-            limits:
-              memory: "18Gi"
-              cpu: "2000m"
           volumeMounts:
-            - name: audio-input-storage
-              mountPath: /app/received_audio
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 8000
-            initialDelaySeconds: 60
-            periodSeconds: 30
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: 8000
-            initialDelaySeconds: 60
-            periodSeconds: 30
-            failureThreshold: 3
+            - name: audio-storage # Corrected name from 'audio-input'
+              mountPath: /tmp
+            - name: whisper-cache-volume # Added this volume mount
+              mountPath: /root/.cache/whisper
+        

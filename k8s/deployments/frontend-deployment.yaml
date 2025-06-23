@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend-deployment
+  namespace: whisper-namespace
   labels:
     app: frontend
 spec:
@@ -16,9 +17,12 @@ spec:
     spec:
       containers:
         - name: frontend-container
-          image: your-dockerhub-username/whisper-frontend:latest 
+          image: vishalg2022/front:1
           ports:
-            - containerPort: 80 
+            - containerPort: 5000
+          env:
+            - name: BACKEND_URL
+              value: "http://whisper-backend-service:8000/" 
           resources:
             requests:
               memory: "64Mi"
@@ -28,13 +32,13 @@ spec:
               cpu: "200m"
           livenessProbe:
             httpGet:
-              path: / 
-              port: 80
+              path: /app 
+              port: 5000 
             initialDelaySeconds: 5
             periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /
-              port: 80
+              path: /app
+              port: 5000 
             initialDelaySeconds: 5
             periodSeconds: 10

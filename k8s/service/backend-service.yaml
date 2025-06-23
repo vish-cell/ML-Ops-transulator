@@ -2,11 +2,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: whisper-backend-service
+  namespace: whisper-namespace
   labels:
-    app: whisper-backend
+    app: backend
 spec:
   selector:
-    app: whisper-backend
+    app: backend
   ports:
     - protocol: TCP
       port: 8000
