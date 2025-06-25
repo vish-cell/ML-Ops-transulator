@@ -1,0 +1,28 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "my-app-monitoring.fullname" . }}-default-deny-ingress
+  namespace: {{ .Values.appNamespace }}
+  labels:
+    {{- include "my-app-monitoring.labels" . | nindent 4 }}
+spec:
+  podSelector: {} # Selects all pods in the namespace
+  policyTypes:
+    - Ingress
+  # No ingress rules means no ingress is allowed by default
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "my-app-monitoring.fullname" . }}-allow-all-egress
+  namespace: {{ .Values.appNamespace }}
+  labels:
+    {{- include "my-app-monitoring.labels" . | nindent 4 }}
+spec:
+  podSelector: {} # Selects all pods in the namespace
+  policyTypes:
+    - Egress
+  egress:
+    - {} # Allows all egress traffic
+{{- end }}

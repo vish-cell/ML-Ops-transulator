@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "my-app-monitoring.fullname" . }}-kube-state-metrics
+  namespace: {{ .Values.monitoringNamespace }}
+  labels:
+    {{- include "my-app-monitoring.labels" . | nindent 4 }}
+    app: {{ .Values.monitoring.kubeStateMetrics.name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "my-app-monitoring.selectorLabels" . | nindent 6 }}
+      app: {{ .Values.monitoring.kubeStateMetrics.name }}
+  template:
+    metadata:
+      labels:
+        {{- include "my-app-monitoring.selectorLabels" . | nindent 8 }}
+        app: {{ .Values.monitoring.kubeStateMetrics.name }}
+    spec:
+      serviceAccountName: {{ .Values.monitoring.prometheus.name }}
+      containers:
+      - name: {{ .Values.monitoring.kubeStateMetrics.name }}
+        image: "{{ .Values.monitoring.kubeStateMetrics.image.repository }}:{{ .Values.monitoring.kubeStateMetrics.image.tag }}"
+        imagePullPolicy: {{ .Values.monitoring.kubeStateMetrics.image.pullPolicy }}
+        ports:
+        - name: http-metrics
+          containerPort: 8080
+          protocol: TCP
+        resources:
+          {{- toYaml .Values.monitoring.kubeStateMetrics.resources | nindent 12 }}

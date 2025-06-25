@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "my-app-monitoring.fullname" . }}-prometheus-deployment
+  namespace: {{ .Values.monitoringNamespace }}
+  labels:
+    {{- include "my-app-monitoring.labels" . | nindent 4 }}
+    app: {{ .Values.monitoring.prometheus.name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "my-app-monitoring.selectorLabels" . | nindent 6 }}
+      app: {{ .Values.monitoring.prometheus.name }}
+  template:
+    metadata:
+      labels:
+        {{- include "my-app-monitoring.selectorLabels" . | nindent 8 }}
+        app: {{ .Values.monitoring.prometheus.name }}
+    spec:
+      serviceAccountName: {{ .Values.monitoring.prometheus.name }}
+      containers:
+      - name: {{ .Values.monitoring.prometheus.name }}
+        image: "{{ .Values.monitoring.prometheus.image.repository }}:{{ .Values.monitoring.prometheus.image.tag }}"
+        imagePullPolicy: {{ .Values.monitoring.prometheus.image.pullPolicy }}
+        args:
+        - "--config.file=/etc/prometheus/prometheus.yml"
+        - "--storage.tsdb.path=/prometheus"
+        - "--web.enable-lifecycle"
+        - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+        - "--web.console.templates=/usr/share/prometheus/consoles"
+        ports:
+        - containerPort: 9090
+        volumeMounts:
+        - name: prometheus-config-volume
+          mountPath: /etc/prometheus
+        - name: prometheus-rules-volume
+          mountPath: /etc/prometheus/rules
+        - name: prometheus-storage-volume
+          mountPath: /prometheus
+        resources:
+          {{- toYaml .Values.monitoring.prometheus.resources | nindent 12 }}
+      volumes:
+      - name: prometheus-config-volume
+        configMap:
+          name: {{ include "my-app-monitoring.fullname" . }}-prometheus-config
+      - name: prometheus-rules-volume
+        configMap:
+          name: {{ include "my-app-monitoring.fullname" . }}-prometheus-alert-rules
+      - name: prometheus-storage-volume
+        persistentVolumeClaim:
+          claimName: {{ .Values.monitoring.prometheus.pvc.name }}
