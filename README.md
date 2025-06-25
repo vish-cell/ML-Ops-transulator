@@ -51,7 +51,7 @@ kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f 
 2. Apply Monitoring Resources (in monitoring namespace)
 These commands deploy Prometheus, Grafana, and related components responsible for collecting and visualizing metrics from your Kubernetes cluster and applications.
 
-kubectl apply -f full-monitoring/base-monitoring.yaml -n monitoring
+* kubectl apply -f full-monitoring/base-monitoring.yaml -n monitoring *
 kubectl apply -f full-monitoring/prometheus.yaml -n monitoring
 kubectl apply -f full-monitoring/prometheus-rules.yaml -n monitoring
 kubectl apply -f full-monitoring/kube-metrics.yaml -n monitoring
@@ -98,7 +98,7 @@ After deployment (especially with Helm), you can typically access Grafana and yo
 minikube service (service name of front) -n whisper-namespace
 After getting url   example     http://localhost:6536       add / app at last   so   http://localhost:6536/app
 
-##Grafana dashboard
+## Grafana dashboard
 minikube service helm-release-grafana-service -n monitoring      #  service name may vary if it helm or manual deployment
 
 ## Prometheus UI
