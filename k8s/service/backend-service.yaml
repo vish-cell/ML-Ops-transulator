@@ -5,6 +5,7 @@ metadata:
   namespace: whisper-namespace
   labels:
     app: backend
+    metrics: "true"
 spec:
   selector:
     app: backend

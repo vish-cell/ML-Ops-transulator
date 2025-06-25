@@ -14,6 +14,7 @@ spec:
     metadata:
       labels:
         app: backend
+        metrics: "true"
     spec:
       volumes:
         - name: audio-storage
@@ -25,7 +26,7 @@ spec:
             claimName: whisper-model-cache-pvc
       containers:
         - name: whisper
-          image: vishalg2022/whisper:2
+          image: vishalg2022/whisper:4
           ports:
             - containerPort: 8000
           volumeMounts:

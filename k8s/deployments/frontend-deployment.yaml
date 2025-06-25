@@ -14,31 +14,14 @@ spec:
     metadata:
       labels:
         app: frontend
+        metrics: "true"
     spec:
       containers:
         - name: frontend-container
-          image: vishalg2022/front:1
+          image: vishalg2022/website:4
           ports:
             - containerPort: 5000
           env:
             - name: BACKEND_URL
               value: "http://whisper-backend-service:8000/" 
-          resources:
-            requests:
-              memory: "64Mi"
-              cpu: "100m"
-            limits:
-              memory: "128Mi"
-              cpu: "200m"
-          livenessProbe:
-            httpGet:
-              path: /app 
-              port: 5000 
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /app
-              port: 5000 
-            initialDelaySeconds: 5
-            periodSeconds: 10
+          
