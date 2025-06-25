@@ -51,23 +51,35 @@ kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f 
 2. Apply Monitoring Resources (in monitoring namespace)
 These commands deploy Prometheus, Grafana, and related components responsible for collecting and visualizing metrics from your Kubernetes cluster and applications.
 
-* kubectl apply -f full-monitoring/base-monitoring.yaml -n monitoring *
+kubectl apply -f full-monitoring/base-monitoring.yaml -n monitoring
+
 kubectl apply -f full-monitoring/prometheus.yaml -n monitoring
+
 kubectl apply -f full-monitoring/prometheus-rules.yaml -n monitoring
+
 kubectl apply -f full-monitoring/kube-metrics.yaml -n monitoring
+
 kubectl apply -f full-monitoring/node-exporter.yaml -n monitoring
+
 kubectl apply -f full-monitoring/grafana.yaml -n monitoring
 
 3. Apply Application Resources (in whisper-namespace)
 These commands deploy your Whisper backend, frontend, persistent volume claims, and network policies within the application namespace.
 
 kubectl apply -f k8s/volumes/model-pvc.yaml -n whisper-namespace
+
 kubectl apply -f k8s/deployments/backend-deployment.yaml -n whisper-namespace
+
 kubectl apply -f k8s/service/backend-service.yaml -n whisper-namespace
+
 kubectl apply -f k8s/deployments/frontend-deployment.yaml -n whisper-namespace
+
 kubectl apply -f k8s/service/frontend-service.yaml -n whisper-namespace
+
 kubectl apply -f k8s/network-policy/base-policy.yaml -n whisper-namespace
+
 kubectl apply -f k8s/network-policy/backend-policy.yaml -n whisper-namespace
+
 kubectl apply -f k8s/network-policy/frontend-policy.yaml -n whisper-namespace
 
 #  Option 2: Deploying with Helm Charts (Recommended)
