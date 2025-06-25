@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "my-app-monitoring.fullname" . }}-grafana-deployment
+  namespace: {{ .Values.monitoringNamespace }}
+  labels:
+    {{- include "my-app-monitoring.labels" . | nindent 4 }}
+    app: {{ .Values.monitoring.grafana.name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "my-app-monitoring.selectorLabels" . | nindent 6 }}
+      app: {{ .Values.monitoring.grafana.name }}
+  template:
+    metadata:
+      labels:
+        {{- include "my-app-monitoring.selectorLabels" . | nindent 8 }}
+        app: {{ .Values.monitoring.grafana.name }}
+    spec:
+      securityContext:
+        fsGroup: 472
+      containers:
+      - name: {{ .Values.monitoring.grafana.name }}
+        image: "{{ .Values.monitoring.grafana.image.repository }}:{{ .Values.monitoring.grafana.image.tag }}"
+        imagePullPolicy: {{ .Values.monitoring.grafana.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.monitoring.grafana.service.targetPort }}
+          name: http
+        env:
+        - name: GF_SECURITY_ADMIN_USER
+          value: {{ .Values.monitoring.grafana.adminUser | quote }}
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: {{ .Values.monitoring.grafana.adminPassword | quote }}
+        - name: GF_SERVER_ROOT_URL
+          value: http://localhost:{{ .Values.monitoring.grafana.service.targetPort }}
+        - name: GF_USERS_ALLOW_SIGN_UP
+          value: "false"
+        volumeMounts:
+        - name: grafana-storage
+          mountPath: /var/lib/grafana
+        - name: grafana-datasources
+          mountPath: /etc/grafana/provisioning/datasources
+          readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: {{ .Values.monitoring.grafana.service.targetPort }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: {{ .Values.monitoring.grafana.service.targetPort }}
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.monitoring.grafana.resources | nindent 12 }}
+      volumes:
+      - name: grafana-storage
+        persistentVolumeClaim:
+          claimName: {{ .Values.monitoring.grafana.pvc.name }}
+      - name: grafana-datasources
+        configMap:
+          name: {{ include "my-app-monitoring.fullname" . }}-grafana-config
+          items:
+            - key: datasources.yaml
+              path: datasources.yaml

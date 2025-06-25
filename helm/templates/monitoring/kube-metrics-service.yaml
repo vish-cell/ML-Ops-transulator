@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "my-app-monitoring.fullname" . }}-kube-state-metrics-service
+  namespace: {{ .Values.monitoringNamespace }}
+  labels:
+    {{- include "my-app-monitoring.labels" . | nindent 4 }}
+    app: {{ .Values.monitoring.kubeStateMetrics.name }}
+spec:
+  selector:
+    app: {{ .Values.monitoring.kubeStateMetrics.name }}
+  ports:
+  - name: http-metrics
+    port: 8080
+    targetPort: 8080
+  type: ClusterIP

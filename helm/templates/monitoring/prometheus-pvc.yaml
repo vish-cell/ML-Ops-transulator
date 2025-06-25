@@ -1,0 +1,18 @@
+{{- if .Values.monitoring.prometheus.pvc.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.monitoring.prometheus.pvc.name }}
+  namespace: {{ .Values.monitoringNamespace }}
+  labels:
+    {{- include "my-app-monitoring.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.monitoring.prometheus.pvc.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.monitoring.prometheus.pvc.size }}
+  {{- if .Values.monitoring.prometheus.pvc.storageClassName }}
+  storageClassName: {{ .Values.monitoring.prometheus.pvc.storageClassName }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,129 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "my-app-monitoring.fullname" . }}-prometheus-config
+  namespace: {{ .Values.monitoringNamespace }}
+  labels:
+    {{- include "my-app-monitoring.labels" . | nindent 4 }}
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        monitor: 'kubernetes-cluster'
+
+    rule_files:
+      - '/etc/prometheus/rules/*.yaml' # This will load rules from prometheus-alert-rules ConfigMap
+
+    scrape_configs:
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+
+      - job_name: 'kubernetes-apiservers'
+        kubernetes_sd_configs:
+          - role: endpoints
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_label_component]
+            regex: apiserver
+            action: keep
+          - source_labels: [__address__]
+            regex: (.*):443
+            replacement: kubernetes.default.svc:443
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_service_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_service_name]
+            target_label: kubernetes_name
+      
+      - job_name: 'whisper-apps'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: ['{{ .Values.appNamespace }}']
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_metrics]
+            action: keep
+            regex: "true"
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: ${1}
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: "([^:]+)(?::\\d+)?;(\\d+)"
+            replacement: "$1:$2"
+            target_label: __address__
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: kubernetes_pod_name
+          - source_labels: [__meta_kubernetes_pod_container_name]
+            target_label: container_name
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            target_label: app_kubernetes_name
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: kubernetes_namespace
+
+      - job_name: 'kubernetes-cadvisor'
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+          
+      - job_name: 'kube-state-metrics'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names: ['{{ .Values.monitoringNamespace }}']
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_label_app]
+            action: keep
+            regex: {{ .Values.monitoring.kubeStateMetrics.name }}
+          - source_labels: [__meta_kubernetes_service_port_name]
+            action: replace
+            regex: http-metrics
+            target_label: __address__
+            replacement: ${1}:${2}
+          - source_labels: [__meta_kubernetes_endpoint_address_target_kind, __meta_kubernetes_endpoint_address_target_name]
+            action: replace
+            target_label: pod_name
+            regex: Pod;(.*)
+            replacement: ${1}
+
+      - job_name: 'node-exporter'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: ['{{ .Values.monitoringNamespace }}']
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: {{ .Values.monitoring.nodeExporter.name }}
+          - source_labels: [__address__]
+            action: replace
+            regex: (.+):9100
+            replacement: ${1}:9100
+            target_label: __address__
+          - source_labels: [__meta_kubernetes_pod_node_name]
+            target_label: instance
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "my-app-monitoring.fullname" . }}-prometheus-alert-rules # Note: This name is used in prometheus.yaml
+  namespace: {{ .Values.monitoringNamespace }}
+  labels:
+    {{- include "my-app-monitoring.labels" . | nindent 4 }}
+data:
+  app-alerts.yaml: |
+{{ .Values.monitoring.prometheusAlertRules | nindent 4 }}

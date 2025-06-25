@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "my-app-monitoring.fullname" . }}-{{ .Values.frontend.name }}-deployment
+  namespace: {{ .Values.appNamespace }}
+  labels:
+    {{- include "my-app-monitoring.labels" . | nindent 4 }}
+    app: {{ .Values.frontend.name }}
+spec:
+  replicas: {{ .Values.frontend.replicas | default 2 }} # Default to 2 replicas
+  selector:
+    matchLabels:
+      {{- include "my-app-monitoring.selectorLabels" . | nindent 6 }}
+      app: {{ .Values.frontend.name }}
+  template:
+    metadata:
+      labels:
+        {{- include "my-app-monitoring.selectorLabels" . | nindent 8 }}
+        app: {{ .Values.frontend.name }}
+        metrics: "true" # For Prometheus discovery
+    spec:
+      containers:
+        - name: frontend-container
+          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.frontend.service.targetPort }}
+          env:
+            - name: BACKEND_URL
+              value: {{ .Values.frontend.backendUrl }}
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}

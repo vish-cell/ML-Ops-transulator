@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "my-app-monitoring.fullname" . }}-prometheus-service
+  namespace: {{ .Values.monitoringNamespace }}
+  labels:
+    {{- include "my-app-monitoring.labels" . | nindent 4 }}
+    app: {{ .Values.monitoring.prometheus.name }}
+spec:
+  selector:
+    app: {{ .Values.monitoring.prometheus.name }}
+  ports:
+    - protocol: TCP
+      port: 9090
+      targetPort: 9090
+      name: web
+  type: ClusterIP

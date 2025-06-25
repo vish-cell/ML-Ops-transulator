@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "my-app-monitoring.fullname" . }}-{{ .Values.backend.name }}-deployment
+  namespace: {{ .Values.appNamespace }}
+  labels:
+    {{- include "my-app-monitoring.labels" . | nindent 4 }}
+    app: {{ .Values.backend.name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "my-app-monitoring.selectorLabels" . | nindent 6 }}
+      app: {{ .Values.backend.name }}
+  template:
+    metadata:
+      labels:
+        {{- include "my-app-monitoring.selectorLabels" . | nindent 8 }}
+        app: {{ .Values.backend.name }}
+        metrics: "true" # For Prometheus discovery
+    spec:
+      containers:
+        - name: whisper
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.backend.service.targetPort }}
+          env:
+            - name: WHISPER_MODEL_SIZE
+              value: {{ .Values.backend.whisperModelSize | quote }}
+            - name: UPLOAD_FOLDER # Ensure this matches your Flask app's config
+              value: /tmp
+          volumeMounts:
+            - name: audio-storage
+              mountPath: /tmp
+            {{- if .Values.backend.pvc.enabled }}
+            - name: whisper-cache-volume
+              mountPath: /root/.cache/whisper
+            {{- end }}
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+      volumes:
+        - name: audio-storage
+          hostPath:
+            path: /mnt/audio-data
+            type: DirectoryOrCreate
+        {{- if .Values.backend.pvc.enabled }}
+        - name: whisper-cache-volume
+          persistentVolumeClaim:
+            claimName: {{ .Values.backend.pvc.name }}
+        {{- end }}

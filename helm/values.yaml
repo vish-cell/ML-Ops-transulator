@@ -1,0 +1,219 @@
+appNamespace: whisper-namespace
+monitoringNamespace: monitoring
+
+backend:
+  name: whisper-backend
+  image:
+    repository: vishalg2022/whisper
+    tag: "4"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+  whisperModelSize: base # e.g., tiny, base, small, medium, large
+  # PVC for model cache
+  pvc:
+    enabled: true
+    name: whisper-model-cache-pvc
+    storageClassName: standard # Use your cluster's default or specific StorageClass
+    accessMode: ReadWriteOnce
+    size: 5Gi
+
+# -- Frontend Application Settings
+frontend:
+  name: frontend
+  image:
+    repository: vishalg2022/website
+    tag: "4"
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    nodePort: 30000
+    port: 80
+    targetPort: 5000
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  backendUrl: http://{{ .Release.Name }}-whisper-backend-service.{{ .Values.appNamespace }}:{{ .Values.backend.service.targetPort }}/ # Dynamically construct backend URL
+
+networkPolicy:
+  enabled: true # Set to false to disable all network policies
+  defaultDenyIngress: true
+  allowAllEgress: true
+
+monitoring:
+  prometheus:
+    name: prometheus
+    image:
+      repository: prom/prometheus
+      tag: "v2.52.0"
+      pullPolicy: IfNotPresent
+    # --- START OF THE MISSING/ADDED CODE ---
+    service: # THIS BLOCK WAS MISSING - IT DEFINES THE PROMETHEUS SERVICE DETAILS FOR GRAFANA TO USE
+      type: ClusterIP
+      port: 9090
+      targetPort: 9090
+    # --- END OF THE MISSING/ADDED CODE ---
+    pvc:
+      enabled: true
+      name: prometheus-pvc
+      storageClassName: standard # Use your cluster's default or specific StorageClass
+      accessMode: ReadWriteOnce
+      size: 20Gi
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+    # Prometheus scrape configurations can be externalized to a ConfigMap
+    # Or embedded directly as a string in values.yaml if simple.
+    # For now, relying on the ConfigMap templates.
+
+  grafana:
+    name: grafana
+    image:
+      repository: grafana/grafana
+      tag: "11.1.0" # Or "10.4.3" if preferred
+      pullPolicy: IfNotPresent
+    service:
+      type: NodePort
+      nodePort: 30001
+      port: 80
+      targetPort: 3000
+    adminUser: admin
+    adminPassword: promgrafana # <<-- IMPORTANT: CHANGE THIS FOR PRODUCTION!
+    pvc:
+      enabled: true
+      name: grafana-pvc
+      storageClassName: standard # Use your cluster's default or specific StorageClass
+      accessMode: ReadWriteOnce
+      size: 10Gi
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  kubeStateMetrics:
+    name: kube-state-metrics
+    image:
+      repository: k8s.gcr.io/kube-state-metrics/kube-state-metrics
+      tag: "v2.10.0"
+      pullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 50m
+        memory: 100Mi
+      limits:
+        cpu: 100m
+        memory: 200Mi
+
+  nodeExporter:
+    name: node-exporter
+    image:
+      repository: quay.io/prometheus/node-exporter
+      tag: "v1.8.0"
+      pullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 50m
+        memory: 50Mi
+      limits:
+        cpu: 100m
+        memory: 100Mi
+
+  # Prometheus Alert Rules (ConfigMap content)
+  prometheusAlertRules: |
+    groups:
+    - name: kubernetes.rules
+      rules:
+      - alert: KubePodCrashLooping
+        expr: sum(increase(kube_pod_container_status_restarts_total{job="kube-state-metrics",namespace=~"{{ .Values.appNamespace }}|{{ .Values.monitoringNamespace }}"}[5m])) by (pod, namespace, container) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Pod {{ $labels.pod }} in {{ $labels.namespace }} is crashlooping
+          description: "Container {{ $labels.container }} in pod {{ $labels.pod }} (namespace {{ .Values.appNamespace }}) has restarted multiple times."
+
+      - alert: KubeDeploymentReplicasMismatch
+        expr: kube_deployment_spec_replicas{job="kube-state-metrics",namespace=~"{{ .Values.appNamespace }}|{{ .Values.monitoringNamespace }}"} != kube_deployment_status_replicas_available{job="kube-state-metrics",namespace=~"{{ .Values.appNamespace }}|{{ .Values.monitoringNamespace }}"}
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Deployment replicas mismatch ({{ $labels.deployment }} in {{ $labels.namespace }})
+          description: "Deployment {{ $labels.deployment }} in namespace {{ $labels.namespace }} has a replica mismatch. Desired: {{ $value }} Available: {{ $labels.available_replicas }}"
+
+    - name: node.rules
+      rules:
+      - alert: NodeExporterDown
+        expr: up{job="node-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Node Exporter is down (instance {{ $labels.instance }})
+          description: "Node Exporter on {{ $labels.instance }} is not reachable. Metrics from this node are not being collected."
+
+      - alert: NodeHighCpuUsage
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle", job="node-exporter"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High CPU usage on node (instance {{ $labels.instance }})
+          description: "Node {{ $labels.instance }} has CPU usage above 80% for 5 minutes."
+    - name: application-alerts
+      rules:
+      - alert: BackendHighRequestLatency
+        expr: histogram_quantile(0.99, rate(whisper_backend_request_latency_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend request latency too high ({{ $value }}s)"
+          description: "The 99th percentile request latency for the backend is above 1 second for 5 minutes."
+
+      - alert: BackendModelLoadFailed
+        expr: whisper_model_load_status == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Whisper Model Failed to Load"
+          description: "The Whisper AI model failed to load on the backend pod."
+
+      - alert: FrontendBackendCommunicationError
+        expr: sum(rate(whisper_frontend_backend_api_calls_total{job="whisper-apps", http_status_code=~"5xx|4xx"}[5m])) by (app_kubernetes_name) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Frontend failed to communicate with backend"
+          description: "Frontend is experiencing errors when calling backend API."
+
+      - alert: PodRestartsTooFrequent
+        expr: changes(kube_pod_container_status_restarts_total{namespace="{{ .Values.appNamespace }}", container=~"whisper|frontend-container"}[15m]) > 2
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pod restarting frequently"
+          description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has restarted more than 2 times in 15 minutes."
