@@ -46,6 +46,7 @@ This method provides granular control over each Kubernetes resource. Ensure you 
 It's crucial to create the dedicated namespaces for your application and monitoring components before deploying resources into them.
 
 kubectl create namespace whisper-namespace
+
 kubectl create namespace monitoring
 
 2. Apply Monitoring Resources (in monitoring namespace)
